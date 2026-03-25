@@ -1,12 +1,627 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Frontend Template</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brewhaus — Gestión de Órdenes</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-bg-primary: #ffffff;
+      --color-bg-secondary: #f5f4f0;
+      --color-bg-tertiary: #eeede8;
+      --color-text-primary: #1a1a18;
+      --color-text-secondary: #6b6a65;
+      --color-border-tertiary: rgba(0,0,0,0.10);
+      --color-border-secondary: rgba(0,0,0,0.18);
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+      --teal-50: #E1F5EE;
+      --teal-400: #1D9E75;
+      --teal-500: #5DCAA5;
+      --teal-600: #0F6E56;
+      --amber-50: #FAEEDA;
+      --amber-600: #854F0B;
+      --amber-400: #EF9F27;
+      --red-400: #E24B4A;
+      --gray-50: #F1EFE8;
+      --gray-600: #444441;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      color: var(--color-text-primary);
+      background: var(--color-bg-tertiary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .app {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+      border-bottom: 0.5px solid var(--color-border-tertiary);
+      padding-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      letter-spacing: -0.5px;
+      color: var(--color-text-primary);
+    }
+
+    .logo span { font-style: italic; color: var(--color-text-secondary); }
+
+    .stats-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: var(--color-bg-primary);
+      border-radius: 99px;
+      padding: 4px 12px;
+      font-size: 12px;
+      border: 0.5px solid var(--color-border-tertiary);
+      color: var(--color-text-secondary);
+    }
+
+    .stat-pill strong { color: var(--color-text-primary); font-weight: 500; }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 1.25rem;
+    }
+
+    .metric-card {
+      background: var(--color-bg-primary);
+      border-radius: var(--border-radius-md);
+      padding: 0.85rem 1rem;
+      text-align: center;
+      border: 0.5px solid var(--color-border-tertiary);
+    }
+
+    .metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; letter-spacing: 0.03em; }
+    .metric-value { font-size: 24px; font-weight: 500; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+      margin-bottom: 0.75rem;
+    }
+
+    .panel {
+      background: var(--color-bg-primary);
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-lg);
+      padding: 1rem 1.25rem;
+    }
+
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .product-card {
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-md);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .product-card:hover { background: var(--color-bg-secondary); border-color: var(--color-border-secondary); }
+    .product-card.selected { border-color: var(--teal-500); background: var(--teal-50); }
+
+    .product-name { font-size: 13px; font-weight: 500; }
+    .product-price { font-size: 12px; color: var(--color-text-secondary); }
+    .product-qty-label { font-size: 11px; color: var(--teal-600); font-weight: 500; }
+
+    .qty-controls { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+
+    .qty-btn {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 0.5px solid var(--color-border-secondary);
+      background: var(--color-bg-primary);
+      cursor: pointer; font-size: 16px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-primary);
+      transition: background 0.12s;
+    }
+
+    .qty-btn:hover { background: var(--color-bg-secondary); }
+    .qty-num { font-size: 13px; font-weight: 500; min-width: 16px; text-align: center; }
+
+    .divider { height: 0.5px; background: var(--color-border-tertiary); margin: 0.85rem 0; }
+
+    .user-row { display: flex; gap: 8px; margin-bottom: 0.75rem; align-items: center; }
+
+    .user-row input {
+      flex: 1; font-size: 13px; padding: 7px 10px;
+      border: 0.5px solid var(--color-border-secondary);
+      border-radius: var(--border-radius-md);
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .user-row input:focus { border-color: var(--teal-400); }
+
+    .cart-summary {
+      margin: 0.75rem 0;
+      padding: 0.75rem;
+      background: var(--color-bg-secondary);
+      border-radius: var(--border-radius-md);
+      font-size: 13px;
+      min-height: 52px;
+    }
+
+    .cart-item { display: flex; justify-content: space-between; padding: 3px 0; color: var(--color-text-secondary); }
+    .cart-item span:last-child { color: var(--color-text-primary); font-weight: 500; }
+
+    .total-row {
+      display: flex; justify-content: space-between;
+      border-top: 0.5px solid var(--color-border-tertiary);
+      margin-top: 6px; padding-top: 6px;
+      font-weight: 500; font-size: 14px;
+    }
+
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      padding: 8px 16px;
+      border-radius: var(--border-radius-md);
+      border: 0.5px solid var(--color-border-secondary);
+      cursor: pointer;
+      background: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: var(--color-bg-secondary); }
+
+    .btn-primary {
+      background: var(--teal-400); color: #fff; border-color: var(--teal-400);
+    }
+
+    .btn-primary:hover { background: var(--teal-600); border-color: var(--teal-600); }
+
+    .btn-sm { font-size: 12px; padding: 5px 10px; }
+
+    .queue-actions { display: flex; gap: 8px; margin-bottom: 0.75rem; flex-wrap: wrap; }
+
+    .queue-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+
+    .order-card {
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-md);
+      padding: 10px 12px;
+      font-size: 13px;
+      animation: slideIn 0.25s ease;
+      background: var(--color-bg-primary);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .order-user { font-weight: 500; font-size: 13px; }
+    .order-time { font-size: 11px; color: var(--color-text-secondary); }
+    .order-items { color: var(--color-text-secondary); margin-bottom: 6px; font-size: 12px; }
+    .order-footer { display: flex; justify-content: space-between; align-items: center; }
+
+    .status-badge {
+      font-size: 11px; font-weight: 500; padding: 3px 8px;
+      border-radius: 99px;
+    }
+
+    .status-reserved { background: var(--amber-50); color: var(--amber-600); }
+    .status-processing { background: var(--teal-50); color: var(--teal-600); }
+    .status-completed { background: var(--gray-50); color: var(--gray-600); }
+
+    .timer-bar {
+      height: 3px; background: var(--color-bg-tertiary);
+      border-radius: 2px; margin-top: 8px; overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%; background: var(--teal-500);
+      border-radius: 2px;
+      transition: width 1s linear, background 0.5s;
+    }
+
+    .timer-fill.urgent { background: var(--amber-400); }
+    .timer-fill.critical { background: var(--red-400); }
+
+    .timer-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; }
+
+    .empty-state {
+      text-align: center; padding: 2rem 1rem;
+      color: var(--color-text-secondary); font-size: 13px;
+    }
+
+    .notif {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--color-bg-primary);
+      border: 0.5px solid var(--color-border-secondary);
+      border-radius: var(--border-radius-md);
+      padding: 10px 16px; font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      animation: fadeUp 0.2s ease;
+      z-index: 999;
+      max-width: 260px;
+      display: none;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 600px) {
+      .layout { grid-template-columns: 1fr; }
+      .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="logo">Brew<span>haus</span></div>
+    <div class="stats-row">
+      <div class="stat-pill">Cache hits: <strong id="hits-count">0</strong></div>
+      <div class="stat-pill">Misses: <strong id="misses-count">0</strong></div>
+      <div class="stat-pill">En cola: <strong id="queue-count">0</strong></div>
+    </div>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Órdenes hoy</div>
+      <div class="metric-value" id="total-orders">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Completadas</div>
+      <div class="metric-value" id="completed-orders">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">En reserva</div>
+      <div class="metric-value" id="reserved-orders">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Procesando</div>
+      <div class="metric-value" id="processing-orders">0</div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <div>
+      <div class="section-title">Catálogo de productos</div>
+      <div class="panel">
+        <div class="catalog-grid" id="catalog-grid"></div>
+
+        <div class="divider"></div>
+
+        <div class="section-title" style="margin-bottom:0.5rem">Nueva orden</div>
+        <div class="user-row">
+          <input type="text" id="username-input" placeholder="Nombre del cliente" />
+        </div>
+
+        <div class="cart-summary" id="cart-summary">
+          <span style="color:var(--color-text-secondary);font-size:13px;">Selecciona productos del catálogo</span>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="placeOrder()">
+          Agregar a la cola
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Cola de órdenes</div>
+      <div class="panel">
+        <div class="queue-actions">
+          <button class="btn btn-sm" onclick="processNext()">Procesar siguiente</button>
+          <button class="btn btn-sm" onclick="resolveNext()">Resolver siguiente</button>
+          <button class="btn btn-sm" onclick="clearCompleted()" style="margin-left:auto">Limpiar completadas</button>
+        </div>
+        <div class="queue-list" id="queue-list">
+          <div class="empty-state">No hay órdenes en cola</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+  const MENU = [
+    { id: 'esp',  name: 'Espresso',      price: 2.50 },
+    { id: 'cap',  name: 'Cappuccino',    price: 3.80 },
+    { id: 'lat',  name: 'Latte',         price: 4.20 },
+    { id: 'mat',  name: 'Matcha Latte',  price: 4.80 },
+    { id: 'cro',  name: 'Croissant',     price: 3.50 },
+    { id: 'muf',  name: 'Muffin',        price: 2.90 },
+    { id: 'sand', name: 'Sandwich',      price: 5.50 },
+    { id: 'aco',  name: 'Agua con gas',  price: 2.00 },
+  ];
+
+  const RESERVE_TIME = 60; // segundos
+
+  let cacheStore = {};
+  let cacheHits = 0;
+  let cacheMisses = 0;
+  let orders = [];
+  let cart = {};
+  let orderIdCounter = 1;
+  let totalOrders = 0;
+  let completedOrders = 0;
+  let notifTimeout;
+
+  /* ── CACHE ─────────────────────────────────────────────── */
+  function getFromCache(id) {
+    if (cacheStore[id] !== undefined) {
+      cacheHits++;
+      showNotif(`Cache HIT: ${cacheStore[id].name}`);
+      return cacheStore[id];
+    } else {
+      cacheMisses++;
+      const item = MENU.find(m => m.id === id);
+      cacheStore[id] = item;
+      showNotif(`Cache MISS: ${item.name} — guardado en caché`);
+      return item;
+    }
+  }
+
+  /* ── CATÁLOGO ───────────────────────────────────────────── */
+  function renderCatalog() {
+    const grid = document.getElementById('catalog-grid');
+    grid.innerHTML = '';
+    MENU.forEach(item => {
+      const qty = cart[item.id] || 0;
+      const div = document.createElement('div');
+      div.className = 'product-card' + (qty > 0 ? ' selected' : '');
+      div.innerHTML = `
+        <div class="product-name">${item.name}</div>
+        <div class="product-price">$${item.price.toFixed(2)}</div>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('${item.id}', -1)">−</button>
+          <span class="qty-num">${qty}</span>
+          <button class="qty-btn" onclick="changeQty('${item.id}', 1)">+</button>
+        </div>
+        ${qty > 0 ? `<div class="product-qty-label">${qty} en carrito</div>` : ''}
+      `;
+      grid.appendChild(div);
+    });
+  }
+
+  function changeQty(id, delta) {
+    getFromCache(id);
+    cart[id] = Math.max(0, (cart[id] || 0) + delta);
+    if (cart[id] === 0) delete cart[id];
+    renderCatalog();
+    renderCart();
+    updateStats();
+  }
+
+  /* ── CARRITO ────────────────────────────────────────────── */
+  function renderCart() {
+    const el = document.getElementById('cart-summary');
+    const keys = Object.keys(cart);
+    if (keys.length === 0) {
+      el.innerHTML = '<span style="color:var(--color-text-secondary);font-size:13px;">Selecciona productos del catálogo</span>';
+      return;
+    }
+    let total = 0;
+    let html = '';
+    keys.forEach(id => {
+      const item = cacheStore[id] || MENU.find(m => m.id === id);
+      const subtotal = item.price * cart[id];
+      total += subtotal;
+      html += `<div class="cart-item"><span>${item.name} ×${cart[id]}</span><span>$${subtotal.toFixed(2)}</span></div>`;
+    });
+    html += `<div class="total-row"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+    el.innerHTML = html;
+  }
+
+  /* ── ÓRDENES ────────────────────────────────────────────── */
+  function placeOrder() {
+    const name = document.getElementById('username-input').value.trim();
+    const keys = Object.keys(cart);
+    if (!name) { showNotif('Ingresa el nombre del cliente'); return; }
+    if (keys.length === 0) { showNotif('Selecciona al menos un producto'); return; }
+
+    const items = keys.map(id => {
+      const item = cacheStore[id] || MENU.find(m => m.id === id);
+      return { ...item, qty: cart[id] };
+    });
+
+    const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+    const order = {
+      id: orderIdCounter++,
+      user: name,
+      items,
+      total,
+      status: 'reserved',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + RESERVE_TIME * 1000,
+    };
+
+    orders.unshift(order);
+    totalOrders++;
+    cart = {};
+    document.getElementById('username-input').value = '';
+    renderCatalog();
+    renderCart();
+    renderQueue();
+    updateStats();
+    showNotif(`Orden #${order.id} agregada a la cola`);
+  }
+
+  function renderQueue() {
+    const list = document.getElementById('queue-list');
+    if (orders.length === 0) {
+      list.innerHTML = '<div class="empty-state">No hay órdenes en cola</div>';
+      return;
+    }
+    list.innerHTML = '';
+    orders.forEach(order => {
+      const div = document.createElement('div');
+      div.className = 'order-card';
+      div.id = 'order-' + order.id;
+
+      const timeLeft = Math.max(0, Math.round((order.expiresAt - Date.now()) / 1000));
+      const pct = order.status === 'reserved' ? Math.round((timeLeft / RESERVE_TIME) * 100) : 100;
+      const fillClass = pct > 50 ? '' : pct > 20 ? ' urgent' : ' critical';
+
+      const statusLabels = { reserved: 'Reservado', processing: 'Procesando', completed: 'Completado' };
+      const statusClasses = { reserved: 'status-reserved', processing: 'status-processing', completed: 'status-completed' };
+
+      const itemsText = order.items.map(i => `${i.name} ×${i.qty}`).join(', ');
+
+      div.innerHTML = `
+        <div class="order-header">
+          <span class="order-user">#${order.id} — ${order.user}</span>
+          <span class="order-time">${new Date(order.createdAt).toLocaleTimeString('es-UY', {hour:'2-digit', minute:'2-digit'})}</span>
+        </div>
+        <div class="order-items">${itemsText}</div>
+        <div class="order-footer">
+          <span class="status-badge ${statusClasses[order.status]}">${statusLabels[order.status]}</span>
+          <span style="font-size:13px;font-weight:500;">$${order.total.toFixed(2)}</span>
+        </div>
+        ${order.status === 'reserved' ? `
+          <div class="timer-bar">
+            <div class="timer-fill${fillClass}" id="fill-${order.id}" style="width:${pct}%"></div>
+          </div>
+          <div class="timer-label" id="tlabel-${order.id}">${timeLeft}s restantes</div>
+        ` : ''}
+      `;
+      list.appendChild(div);
+    });
+
+    document.getElementById('queue-count').textContent = orders.filter(o => o.status !== 'completed').length;
+  }
+
+  function processNext() {
+    const idx = [...orders].reverse().findIndex(o => o.status === 'reserved');
+    if (idx === -1) { showNotif('No hay órdenes reservadas'); return; }
+    const realIdx = orders.length - 1 - idx;
+    orders[realIdx].status = 'processing';
+    renderQueue();
+    updateStats();
+    showNotif(`Orden #${orders[realIdx].id} en procesamiento`);
+  }
+
+  function resolveNext() {
+    const idx = [...orders].reverse().findIndex(o => o.status === 'processing');
+    if (idx === -1) { showNotif('No hay órdenes procesando'); return; }
+    const realIdx = orders.length - 1 - idx;
+    orders[realIdx].status = 'completed';
+    completedOrders++;
+    renderQueue();
+    updateStats();
+    showNotif(`Orden #${orders[realIdx].id} completada`);
+  }
+
+  function clearCompleted() {
+    orders = orders.filter(o => o.status !== 'completed');
+    renderQueue();
+    updateStats();
+  }
+
+  /* ── STATS ──────────────────────────────────────────────── */
+  function updateStats() {
+    document.getElementById('hits-count').textContent = cacheHits;
+    document.getElementById('misses-count').textContent = cacheMisses;
+    document.getElementById('total-orders').textContent = totalOrders;
+    document.getElementById('completed-orders').textContent = completedOrders;
+    document.getElementById('reserved-orders').textContent = orders.filter(o => o.status === 'reserved').length;
+    document.getElementById('processing-orders').textContent = orders.filter(o => o.status === 'processing').length;
+  }
+
+  /* ── NOTIFICACIONES ─────────────────────────────────────── */
+  function showNotif(msg) {
+    const el = document.getElementById('notif');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'fadeUp 0.2s ease';
+    clearTimeout(notifTimeout);
+    notifTimeout = setTimeout(() => { el.style.display = 'none'; }, 2500);
+  }
+
+  /* ── TIMERS ─────────────────────────────────────────────── */
+  function tickTimers() {
+    let needsRender = false;
+    orders.forEach(order => {
+      if (order.status === 'reserved') {
+        const timeLeft = Math.max(0, Math.round((order.expiresAt - Date.now()) / 1000));
+        const pct = Math.round((timeLeft / RESERVE_TIME) * 100);
+        const fillEl = document.getElementById('fill-' + order.id);
+        const labelEl = document.getElementById('tlabel-' + order.id);
+        if (fillEl) {
+          fillEl.style.width = pct + '%';
+          fillEl.className = 'timer-fill' + (pct > 50 ? '' : pct > 20 ? ' urgent' : ' critical');
+        }
+        if (labelEl) labelEl.textContent = timeLeft + 's restantes';
+        if (timeLeft === 0) {
+          order.status = 'completed';
+          completedOrders++;
+          needsRender = true;
+          showNotif(`Orden #${order.id} expiró`);
+        }
+      }
+    });
+    if (needsRender) { renderQueue(); updateStats(); }
+  }
+
+  /* ── INIT ───────────────────────────────────────────────── */
+  renderCatalog();
+  renderCart();
+  renderQueue();
+  updateStats();
+  setInterval(tickTimers, 1000);
+</script>
+
+</body>
+</html>
