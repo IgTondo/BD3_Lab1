@@ -38,3 +38,19 @@ app.get("/health", async (_request, response) => {
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
 });
+
+
+app.get("/products", async (_request, response) => {
+  let products = await redisClient.keys("brewhaus:product:*");
+})
+  .then(keys => {
+    return Promise.all(keys.map(key => redisClient.hGetAll(key)));
+  })
+  .then(products => {
+    response.json(products);
+  })
+  .catch(error => {
+    console.error("Error fetching products:", error.message);
+    response.status(500).json({ error: "Failed to fetch products" });
+  });
+
