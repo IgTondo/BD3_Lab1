@@ -1,15 +1,10 @@
 /**
  * seed_redis.js — Brewhaus
- * Pobla la base de datos Redis con la estructura inicial de la aplicación.
+ * Pobla el catálogo de productos en Redis.
  *
  * Uso:
  *   npm install ioredis
  *   node seed_redis.js
- *
- * Variables de entorno opcionales:
- *   REDIS_HOST  (default: 127.0.0.1)
- *   REDIS_PORT  (default: 6379)
- *   REDIS_PASS  (default: sin contraseña)
  */
 
 const Redis = require('ioredis');
@@ -19,10 +14,6 @@ const client = new Redis({
   port: process.env.REDIS_PORT || 6379,
   password: process.env.REDIS_PASS || undefined,
 });
-
-/* ─────────────────────────────────────────────
-   DATOS INICIALES
-───────────────────────────────────────────── */
 
 const PRODUCTS = [
   { id: 'esp',  name: 'Espresso',      price: 2.50, category: 'bebida', stock: 40 },
@@ -35,83 +26,9 @@ const PRODUCTS = [
   { id: 'aco',  name: 'Agua con gas',  price: 2.00, category: 'bebida', stock: 50 },
 ];
 
-const SAMPLE_USERS = [
-  { id: 'u1', name: 'Ana García',    email: 'ana@brewhaus.uy' },
-  { id: 'u2', name: 'Carlos López',  email: 'carlos@brewhaus.uy' },
-  { id: 'u3', name: 'María Fernández', email: 'maria@brewhaus.uy' },
-];
-
-const SAMPLE_ORDERS = [
-  {
-    id: 'order:1001',
-    user: 'Ana García',
-    items: JSON.stringify([
-      { id: 'lat', name: 'Latte', price: 4.20, qty: 1 },
-      { id: 'cro', name: 'Croissant', price: 3.50, qty: 2 },
-    ]),
-    total: 11.20,
-    status: 'reserved',
-    createdAt: Date.now() - 20000,
-    expiresAt: Date.now() + 40000,
-  },
-  {
-    id: 'order:1002',
-    user: 'Carlos López',
-    items: JSON.stringify([
-      { id: 'cap', name: 'Cappuccino', price: 3.80, qty: 2 },
-    ]),
-    total: 7.60,
-    status: 'processing',
-    createdAt: Date.now() - 60000,
-    expiresAt: Date.now() - 1000,
-  },
-  {
-    id: 'order:1003',
-    user: 'María Fernández',
-    items: JSON.stringify([
-      { id: 'mat', name: 'Matcha Latte', price: 4.80, qty: 1 },
-      { id: 'muf', name: 'Muffin', price: 2.90, qty: 1 },
-    ]),
-    total: 7.70,
-    status: 'completed',
-    createdAt: Date.now() - 300000,
-    expiresAt: Date.now() - 240000,
-  },
-];
-
-/* ─────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────── */
-
-function log(emoji, msg) {
-  console.log(`${emoji}  ${msg}`);
-}
-
-function section(title) {
-  console.log(`\n${'─'.repeat(50)}`);
-  console.log(`  ${title}`);
-  console.log('─'.repeat(50));
-}
-
-/* ─────────────────────────────────────────────
-   SEED
-───────────────────────────────────────────── */
-
 async function seed() {
-  log('🔌', 'Conectando a Redis...');
+  console.log('Cargando productos...');
 
-  // ── 1. FLUSH (solo datos de la app, no todo el servidor) ──
-  section('Limpiando claves previas de Brewhaus');
-  const keysToDelete = await client.keys('brewhaus:*');
-  if (keysToDelete.length > 0) {
-    await client.del(...keysToDelete);
-    log('🗑 ', `${keysToDelete.length} claves eliminadas`);
-  } else {
-    log('✅', 'No había claves previas');
-  }
-
-  // ── 2. CATÁLOGO — Hash por producto (cache) ───────────────
-  section('Cargando catálogo de productos (Hashes)');
   for (const product of PRODUCTS) {
     const key = `brewhaus:product:${product.id}`;
     await client.hset(key, {
@@ -222,7 +139,7 @@ async function seed() {
 }
 
 seed().catch(err => {
-  console.error('❌ Error durante el seed:', err);
+  console.error('Error:', err);
   client.quit();
   process.exit(1);
 });
