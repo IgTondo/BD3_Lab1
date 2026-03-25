@@ -25,14 +25,14 @@ const client = new Redis({
 ───────────────────────────────────────────── */
 
 const PRODUCTS = [
-  { id: 'esp',  name: 'Espresso',      price: 2.50, category: 'bebida',  available: true },
-  { id: 'cap',  name: 'Cappuccino',    price: 3.80, category: 'bebida',  available: true },
-  { id: 'lat',  name: 'Latte',         price: 4.20, category: 'bebida',  available: true },
-  { id: 'mat',  name: 'Matcha Latte',  price: 4.80, category: 'bebida',  available: true },
-  { id: 'cro',  name: 'Croissant',     price: 3.50, category: 'comida',  available: true },
-  { id: 'muf',  name: 'Muffin',        price: 2.90, category: 'comida',  available: true },
-  { id: 'sand', name: 'Sandwich',      price: 5.50, category: 'comida',  available: true },
-  { id: 'aco',  name: 'Agua con gas',  price: 2.00, category: 'bebida',  available: true },
+  { id: 'esp',  name: 'Espresso',      price: 2.50, category: 'bebida', stock: 40 },
+  { id: 'cap',  name: 'Cappuccino',    price: 3.80, category: 'bebida', stock: 35 },
+  { id: 'lat',  name: 'Latte',         price: 4.20, category: 'bebida', stock: 30 },
+  { id: 'mat',  name: 'Matcha Latte',  price: 4.80, category: 'bebida', stock: 20 },
+  { id: 'cro',  name: 'Croissant',     price: 3.50, category: 'comida', stock: 25 },
+  { id: 'muf',  name: 'Muffin',        price: 2.90, category: 'comida', stock: 28 },
+  { id: 'sand', name: 'Sandwich',      price: 5.50, category: 'comida', stock: 18 },
+  { id: 'aco',  name: 'Agua con gas',  price: 2.00, category: 'bebida', stock: 50 },
 ];
 
 const SAMPLE_USERS = [
@@ -119,7 +119,8 @@ async function seed() {
       name:      product.name,
       price:     product.price.toFixed(2),
       category:  product.category,
-      available: product.available ? '1' : '0',
+      stock:     String(product.stock),
+      available: product.stock > 0 ? '1' : '0',
     });
     // TTL de 1 hora para simular caché con expiración
     await client.expire(key, 3600);
@@ -129,10 +130,10 @@ async function seed() {
   // ── 3. SET de IDs de productos disponibles ─────────────────
   section('Creando Set de IDs disponibles');
   const availableKey = 'brewhaus:catalog:available';
-  for (const p of PRODUCTS.filter(p => p.available)) {
+  for (const p of PRODUCTS.filter(p => p.stock > 0)) {
     await client.sadd(availableKey, p.id);
   }
-  log('🗂 ', `Set creado: ${availableKey}  →  ${PRODUCTS.filter(p => p.available).length} productos`);
+  log('🗂 ', `Set creado: ${availableKey}  →  ${PRODUCTS.filter(p => p.stock > 0).length} productos`);
 
   // ── 4. CATEGORÍAS — Sets por categoría ────────────────────
   section('Creando Sets por categoría');
