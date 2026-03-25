@@ -1,0 +1,33 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis-template
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: backend-template
+    environment:
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend-template
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
