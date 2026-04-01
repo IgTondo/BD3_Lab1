@@ -44,16 +44,6 @@ async function seed() {
   await client.quit();
 }
 
-//elementos de la orden
-await client.hset(key, {
-  prods:       String,  //lista de productos en formato JSON con id y cantidad
-  total:       String,  //total de la orden
-  timestamp:   String,  
-  status:      String,  //estado de la orden ("pendiente", "completada")
-  name:     String,     //del usuario
-});
-console.log(`OK  ${key}  →  ${product.name}`);
-
 seed().catch(err => {
   console.error('Error:', err);
   client.quit();
