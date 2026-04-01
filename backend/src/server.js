@@ -103,3 +103,76 @@ app.post("/order", async (req,res) => {
     res.status(500).json({ error: "Failed to post order"})
     }
 })
+
+app.get("/orders/pending", async (req, res) =>{
+  try{
+    let keys = await redisClient.lRange("brewhaus:orders:pending", 0, -1);
+    const result = [];
+    for (const key of keys){
+      const order = await redisClient.hGetAll(key);
+      result.push(order);
+    }
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error : "Failed to fetch pending orders"});
+  }
+})
+
+app.get("/orders/processed", async (req, res) =>{
+  try{
+    let keys = await redisClient.lRange("brewhaus:orders:processed", 0, -1);
+    const result = [];
+    for (const key of keys){
+      const order = await redisClient.hGetAll(key);
+      result.push(order);
+    }
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error : "Failed to fetch porcessed orders"});
+  }
+})
+
+app.get("/orders/completed", async (req, res) =>{
+  try{
+    let keys = await redisClient.lRange("brewhaus:orders:completed", 0, -1);
+    const result = [];
+    for (const key of keys){
+      const order = await redisClient.hGetAll(key);
+      result.push(order);
+    }
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error : "Failed to fetch completed orders"});
+  }
+})
+
+app.post("/process", async (req,res) => {
+  try{
+    const orderKey = await redisClient.lPop("brewhaus:orders:pending");
+    if (!orderKey){
+      return res.status(400).json({error : "No order to process"});
+    }
+    await redisClient.rPush("brewhaus:orders:processed", orderKey);
+    await redisClient.hset(orderKey, "status", "processed");
+    res.json({message: "Order porcessed succesfully", id: orderKey})
+
+  } catch (error) {
+    res.status(500).json({error: "Failed to process order"})
+  }
+})
+
+app.post("/complete", async (req,res) => {
+  try{
+    const orderKey = await redisClient.lPop("brewhaus:orders:processed");
+    if (!orderKey){
+      return res.status(400).json({error : "No order to complete"});
+    }
+    await redisClient.rPush("brewhaus:orders:completed", orderKey);
+    await redisClient.hset(id, "status", "completed");
+    res.json({message: "Order completed succesfully", id: orderKey})
+
+  } catch (error) {
+    res.status(500).json({error: "Failed to complete order"})
+  }
+})
+
