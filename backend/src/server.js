@@ -40,22 +40,45 @@ app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
 });
 
-app.get("/products", async (_request, response) => { 
-  let products = await redisClient.keys("brewhaus:product:*"); }) 
-  .then(keys => { return Promise.all(keys.map(key => redisClient.hGetAll(key))); }) 
-  .then(products => { response.json(products); }) 
-  .catch(error => { console.error("Error fetching products:", error.message); 
-  response.status(500).json({ error: "Failed to fetch products" }); });
+const PRODUCTS = [
+  { id: 'esp',  name: 'Espresso',      price: 2.50, category: 'bebida' },
+  { id: 'cap',  name: 'Cappuccino',    price: 3.80, category: 'bebida' },
+  { id: 'lat',  name: 'Latte',         price: 4.20, category: 'bebida' },
+  { id: 'mat',  name: 'Matcha Latte',  price: 4.80, category: 'bebida' },
+  { id: 'cro',  name: 'Croissant',     price: 3.50, category: 'comida' },
+  { id: 'muf',  name: 'Muffin',        price: 2.90, category: 'comida' },
+  { id: 'sand', name: 'Sandwich',      price: 5.50, category: 'comida' },
+  { id: 'aco',  name: 'Agua con gas',  price: 2.00, category: 'bebida' },
+];
 
 app.get("/products", async (req, res) => {
   try {
     let keys = await redisClient.keys("brewhaus:product:*");
-    const result = [];
-    for (const key of keys){
-      const product = await redisClient.hGetAll(key);
-      result.push(product);
+    if (keys.length>0){
+      const result = [];
+      for (const key of keys){
+        const product = await redisClient.hGetAll(key);
+        result.push(product);
+      }
+      await redisClient.incr("brewhaus:cache:hits");
+      res.json(result)
     }
-    res.json(result);
+    else{
+      const result = [];
+      await redisClient.incr("brewhaus:cache:misses")
+      for (const product of PRODUCTS){
+        const key = "brewhaus:product:"+ product.id;
+        const prod = {
+          id:       product.id,
+          name:     product.name,
+          price:    product.price.toFixed(2),
+          category: product.category,
+        };
+        await redisClient.hset(key, prod);
+        result.push(prod)
+      }
+      res.json(result)
+    }
 
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch products" });
@@ -110,6 +133,12 @@ app.get("/orders/pending", async (req, res) =>{
     const result = [];
     for (const key of keys){
       const order = await redisClient.hGetAll(key);
+      const ttl = await redisClient.ttl(key);
+      if (ttl===-2){
+        await redisClient.lRem("brewhaus:orders:pending", key);
+        continue;
+      }
+      order.ttl = ttl;
       result.push(order);
     }
     res.json(result)
@@ -173,6 +202,17 @@ app.post("/complete", async (req,res) => {
 
   } catch (error) {
     res.status(500).json({error: "Failed to complete order"})
+  }
+})
+
+app.get("/cache/stats", async(req,res) => {
+  try{
+    const count_misses = await redisClient.get("brewhaus:cache:misses") || 0;
+    const count_hits = await redisClient.get("brewhaus:cache:hits") || 0;
+    res.json({misses : Number(count_misses),
+      hits : Number(count_hits)})
+  } catch (error){
+    res.status(500).json({error: "Failed to get hit and miss counters"})
   }
 })
 
