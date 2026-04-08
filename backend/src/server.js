@@ -19,6 +19,8 @@ const APP_CONFIG = {
 
 const AVAILABLE_SET_KEY = "brewhaus:catalog:available";
 const ORDER_QUEUE_KEY = "brewhaus:queue:pending";
+const COMPLETED_QUEUE_KEY = "brewhaus:queue:completed";
+const MENU_CACHE_KEY = "brewhaus:cache:menu";
 
 function normalizeProductHash(hash) {
   return {
@@ -77,9 +79,22 @@ app.get("/health", async (_request, response) => {
 
 app.get("/menu", async (_request, response) => {
   try {
+    const cachedMenu = await redisClient.get(MENU_CACHE_KEY);
+
+    if (cachedMenu){
+      await redisClient.incr("brewhaus:cache:hits");
+      return response.json(JSON.parse(cachedMenu));
+    }
+
+    await redisClient.incr("brewhaus:cache:misses");
+
     const menu = await loadMenuFromRedis();
+
+    await redisClient.set(MENU_CACHE_KEY, JSON.stringify(menu), {EX: 30});
+
     response.json(menu);
-  } catch (error) {
+
+    } catch (error) {
     response.status(500).json({
       message: "No se pudo obtener el catalogo",
       error: error.message,
@@ -200,7 +215,8 @@ app.post("/orders", async (request, response) => {
     });
     multi.rPush(ORDER_QUEUE_KEY, orderId);
     multi.incr("brewhaus:stats:total_orders");
-
+    multi.expire(orderId, APP_CONFIG.reserveTimeSeconds);
+    multi.del(MENU_CACHE_KEY);
     await multi.exec();
 
     return response.status(201).json({
@@ -227,102 +243,16 @@ app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
 });
 
-const PRODUCTS = [
-  { id: 'esp',  name: 'Espresso',      price: 2.50, category: 'bebida' },
-  { id: 'cap',  name: 'Cappuccino',    price: 3.80, category: 'bebida' },
-  { id: 'lat',  name: 'Latte',         price: 4.20, category: 'bebida' },
-  { id: 'mat',  name: 'Matcha Latte',  price: 4.80, category: 'bebida' },
-  { id: 'cro',  name: 'Croissant',     price: 3.50, category: 'comida' },
-  { id: 'muf',  name: 'Muffin',        price: 2.90, category: 'comida' },
-  { id: 'sand', name: 'Sandwich',      price: 5.50, category: 'comida' },
-  { id: 'aco',  name: 'Agua con gas',  price: 2.00, category: 'bebida' },
-];
-
-app.get("/products", async (req, res) => {
-  try {
-    let keys = await redisClient.keys("brewhaus:product:*");
-    if (keys.length>0){
-      const result = [];
-      for (const key of keys){
-        const product = await redisClient.hGetAll(key);
-        result.push(product);
-      }
-      await redisClient.incr("brewhaus:cache:hits");
-      res.json(result)
-    }
-    else{
-      const result = [];
-      await redisClient.incr("brewhaus:cache:misses")
-      for (const product of PRODUCTS){
-        const key = "brewhaus:product:"+ product.id;
-        const prod = {
-          id:       product.id,
-          name:     product.name,
-          price:    product.price.toFixed(2),
-          category: product.category,
-        };
-        await redisClient.hset(key, prod);
-        result.push(prod)
-      }
-      res.json(result)
-    }
-
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch products" });
-  }
-});
-
-app.post("/order", async (req,res) => {
-  try{
-    const id = await redisClient.incr("brewhaus:order:id");  
-    const orderKey = "brewhaus:order:" + id;
-    const body = req.body;
-    const customer = body.name;
-    const products = body.products;
-    
-    if (!body.name || !body.products) {
-      return res.status(400).json({ error: "invalid input" });}
-
-    let suma=0
-    for (const prod of products){
-      let info = await redisClient.hGetAll("brewhaus:product:" + prod.id);
-      
-      if (!info.price) {
-        throw new Error("product not found");
-      }
-
-      suma += parseFloat(info.price)*prod.qty;
-    }
-
-    await redisClient.hset(orderKey, {
-      prods: JSON.stringify(products),
-      total : suma,
-      status : "pending",
-      timestamp : Date.now(),
-      name : customer
-    });
-    await redisClient.rPush("brewhaus:orders:pending", orderKey);
-    await redisClient.expire(orderKey,60)
-
-    res.json({ 
-      message: "order created", 
-      id: id 
-    })
-  
-  } catch(error) {
-    res.status(500).json({ error: "Failed to post order"})
-    }
-})
 
 app.get("/orders/pending", async (req, res) =>{
   try{
-    let keys = await redisClient.lRange("brewhaus:orders:pending", 0, -1);
+    let keys = await redisClient.lRange(ORDER_QUEUE_KEY, 0, -1);
     const result = [];
     for (const key of keys){
       const order = await redisClient.hGetAll(key);
       const ttl = await redisClient.ttl(key);
       if (ttl===-2){
-        await redisClient.lRem("brewhaus:orders:pending", key);
+        await redisClient.lRem(ORDER_QUEUE_KEY, 0, key);
         continue;
       }
       order.ttl = ttl;
@@ -334,23 +264,10 @@ app.get("/orders/pending", async (req, res) =>{
   }
 })
 
-app.get("/orders/processed", async (req, res) =>{
-  try{
-    let keys = await redisClient.lRange("brewhaus:orders:processed", 0, -1);
-    const result = [];
-    for (const key of keys){
-      const order = await redisClient.hGetAll(key);
-      result.push(order);
-    }
-    res.json(result)
-  } catch (error) {
-    res.status(500).json({ error : "Failed to fetch porcessed orders"});
-  }
-})
 
 app.get("/orders/completed", async (req, res) =>{
   try{
-    let keys = await redisClient.lRange("brewhaus:orders:completed", 0, -1);
+    let keys = await redisClient.lRange(COMPLETED_QUEUE_KEY, 0, -1);
     const result = [];
     for (const key of keys){
       const order = await redisClient.hGetAll(key);
@@ -362,29 +279,20 @@ app.get("/orders/completed", async (req, res) =>{
   }
 })
 
-app.post("/process", async (req,res) => {
-  try{
-    const orderKey = await redisClient.lPop("brewhaus:orders:pending");
-    if (!orderKey){
-      return res.status(400).json({error : "No order to process"});
-    }
-    await redisClient.rPush("brewhaus:orders:processed", orderKey);
-    await redisClient.hset(orderKey, "status", "processed");
-    res.json({message: "Order porcessed succesfully", id: orderKey})
-
-  } catch (error) {
-    res.status(500).json({error: "Failed to process order"})
-  }
-})
-
 app.post("/complete", async (req,res) => {
   try{
-    const orderKey = await redisClient.lPop("brewhaus:orders:processed");
+    const orderKey = await redisClient.lPop(ORDER_QUEUE_KEY);
     if (!orderKey){
       return res.status(400).json({error : "No order to complete"});
     }
-    await redisClient.rPush("brewhaus:orders:completed", orderKey);
-    await redisClient.hset(id, "status", "completed");
+    
+    const order = await redisClient.hGetAll(orderKey);
+
+    const multi = redisClient.multi();
+    multi.rPush(COMPLETED_QUEUE_KEY, orderKey);
+    multi.hSet(orderKey, "status", "completed");
+    multi.zIncrBy("brewhaus:leaderboard:clients", 1, order.user);
+    await multi.exec();
     res.json({message: "Order completed succesfully", id: orderKey})
 
   } catch (error) {
@@ -403,3 +311,34 @@ app.get("/cache/stats", async(req,res) => {
   }
 })
 
+app.get("/ranking/products", async (req, res) => {
+  try{
+    const result = await redisClient.zRevRange("brewhaus:leaderboard:products", 0, -1, { WITHSCORES: true });
+    const ranking = [];
+    for (let i=0; i< result.length; i+=2){
+      ranking.push({
+        product: result[i],
+        sold: Number(result[i+1]),
+      });
+    }
+    res.json(ranking);
+  } catch(error){
+      res.status(500).json({ error : "Failed to fetch product ranking"});
+  }
+});
+
+app.get("/ranking/clients", async (req, res) => {
+  try{
+    const result = await redisClient.zRevRange("brewhaus:leaderboard:clients", 0, -1, { WITHSCORES: true });
+    const ranking = [];
+    for (let i=0; i< result.length; i+=2){
+      ranking.push({
+        client: result[i],
+        sold: Number(result[i+1]),
+      });
+    }
+    res.json(ranking);
+  } catch(error){
+      res.status(500).json({ error : "Failed to fetch client ranking"});
+  }
+});
