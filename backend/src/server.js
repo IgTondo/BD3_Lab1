@@ -291,7 +291,7 @@ app.post("/complete", async (req,res) => {
     const multi = redisClient.multi();
     multi.rPush(COMPLETED_QUEUE_KEY, orderKey);
     multi.hSet(orderKey, "status", "completed");
-    multi.zIncrBy("brewhaus:leaderboard:clients", 1, order.user);
+    multi.zIncrBy("brewhaus:leaderboard:customers", 1, order.user);
     await multi.exec();
     res.json({message: "Order completed succesfully", id: orderKey})
 
@@ -313,14 +313,8 @@ app.get("/cache/stats", async(req,res) => {
 
 app.get("/ranking/products", async (req, res) => {
   try{
-    const result = await redisClient.zRevRange("brewhaus:leaderboard:products", 0, -1, { WITHSCORES: true });
-    const ranking = [];
-    for (let i=0; i< result.length; i+=2){
-      ranking.push({
-        product: result[i],
-        sold: Number(result[i+1]),
-      });
-    }
+    const result = await redisClient.zRangeWithScores("brewhaus:leaderboard:products", 0, -1);
+    const ranking = result.reverse().map(({value,score}) => ({product:value, sold:score}));
     res.json(ranking);
   } catch(error){
       res.status(500).json({ error : "Failed to fetch product ranking"});
@@ -329,14 +323,8 @@ app.get("/ranking/products", async (req, res) => {
 
 app.get("/ranking/clients", async (req, res) => {
   try{
-    const result = await redisClient.zRevRange("brewhaus:leaderboard:clients", 0, -1, { WITHSCORES: true });
-    const ranking = [];
-    for (let i=0; i< result.length; i+=2){
-      ranking.push({
-        client: result[i],
-        sold: Number(result[i+1]),
-      });
-    }
+    const result = await redisClient.zRangeWithScores("brewhaus:leaderboard:customers", 0, -1);
+    const ranking = result.reverse().map(({value,score}) => ({client:value, sold:score}));
     res.json(ranking);
   } catch(error){
       res.status(500).json({ error : "Failed to fetch client ranking"});
