@@ -19,6 +19,8 @@ const APP_CONFIG = {
 
 const AVAILABLE_SET_KEY = "brewhaus:catalog:available";
 const ORDER_QUEUE_KEY = "brewhaus:queue:pending";
+const COMPLETED_QUEUE_KEY = "brewhaus:queue:completed";
+const MENU_CACHE_KEY = "brewhaus:cache:menu";
 
 function normalizeProductHash(hash) {
   return {
@@ -77,9 +79,22 @@ app.get("/health", async (_request, response) => {
 
 app.get("/menu", async (_request, response) => {
   try {
+    const cachedMenu = await redisClient.get(MENU_CACHE_KEY);
+
+    if (cachedMenu){
+      await redisClient.incr("brewhaus:cache:hits");
+      return response.json(JSON.parse(cachedMenu));
+    }
+
+    await redisClient.incr("brewhaus:cache:misses");
+
     const menu = await loadMenuFromRedis();
+
+    await redisClient.set(MENU_CACHE_KEY, JSON.stringify(menu), {EX: 30});
+
     response.json(menu);
-  } catch (error) {
+
+    } catch (error) {
     response.status(500).json({
       message: "No se pudo obtener el catalogo",
       error: error.message,
@@ -200,7 +215,8 @@ app.post("/orders", async (request, response) => {
     });
     multi.rPush(ORDER_QUEUE_KEY, orderId);
     multi.incr("brewhaus:stats:total_orders");
-
+    multi.expire(orderId, APP_CONFIG.reserveTimeSeconds);
+    multi.del(MENU_CACHE_KEY);
     await multi.exec();
 
     return response.status(201).json({
@@ -225,4 +241,92 @@ app.post("/orders", async (request, response) => {
 
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
+});
+
+
+app.get("/orders/pending", async (req, res) =>{
+  try{
+    let keys = await redisClient.lRange(ORDER_QUEUE_KEY, 0, -1);
+    const result = [];
+    for (const key of keys){
+      const order = await redisClient.hGetAll(key);
+      const ttl = await redisClient.ttl(key);
+      if (ttl===-2){
+        await redisClient.lRem(ORDER_QUEUE_KEY, 0, key);
+        continue;
+      }
+      order.ttl = ttl;
+      result.push(order);
+    }
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error : "Failed to fetch pending orders"});
+  }
+})
+
+
+app.get("/orders/completed", async (req, res) =>{
+  try{
+    let keys = await redisClient.lRange(COMPLETED_QUEUE_KEY, 0, -1);
+    const result = [];
+    for (const key of keys){
+      const order = await redisClient.hGetAll(key);
+      result.push(order);
+    }
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error : "Failed to fetch completed orders"});
+  }
+})
+
+app.post("/complete", async (req,res) => {
+  try{
+    const orderKey = await redisClient.lPop(ORDER_QUEUE_KEY);
+    if (!orderKey){
+      return res.status(400).json({error : "No order to complete"});
+    }
+    
+    const order = await redisClient.hGetAll(orderKey);
+
+    const multi = redisClient.multi();
+    multi.rPush(COMPLETED_QUEUE_KEY, orderKey);
+    multi.hSet(orderKey, "status", "completed");
+    multi.zIncrBy("brewhaus:leaderboard:customers", 1, order.user);
+    await multi.exec();
+    res.json({message: "Order completed succesfully", id: orderKey})
+
+  } catch (error) {
+    res.status(500).json({error: "Failed to complete order"})
+  }
+})
+
+app.get("/cache/stats", async(req,res) => {
+  try{
+    const count_misses = await redisClient.get("brewhaus:cache:misses") || 0;
+    const count_hits = await redisClient.get("brewhaus:cache:hits") || 0;
+    res.json({misses : Number(count_misses),
+      hits : Number(count_hits)})
+  } catch (error){
+    res.status(500).json({error: "Failed to get hit and miss counters"})
+  }
+})
+
+app.get("/ranking/products", async (req, res) => {
+  try{
+    const result = await redisClient.zRangeWithScores("brewhaus:leaderboard:products", 0, -1);
+    const ranking = result.reverse().map(({value,score}) => ({product:value, sold:score}));
+    res.json(ranking);
+  } catch(error){
+      res.status(500).json({ error : "Failed to fetch product ranking"});
+  }
+});
+
+app.get("/ranking/clients", async (req, res) => {
+  try{
+    const result = await redisClient.zRangeWithScores("brewhaus:leaderboard:customers", 0, -1);
+    const ranking = result.reverse().map(({value,score}) => ({client:value, sold:score}));
+    res.json(ranking);
+  } catch(error){
+      res.status(500).json({ error : "Failed to fetch client ranking"});
+  }
 });
