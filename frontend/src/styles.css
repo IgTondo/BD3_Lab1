@@ -65,7 +65,19 @@ body {
   color: var(--color-text-secondary);
 }
 
+.page-caption {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 0.25rem;
+}
+
 .stats-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -110,6 +122,10 @@ body {
 .metric-value {
   font-size: 24px;
   font-weight: 500;
+}
+
+.metric-value-sm {
+  font-size: 18px;
 }
 
 .layout {
@@ -315,6 +331,10 @@ body {
   padding: 5px 10px;
 }
 
+.nav-link-btn {
+  margin-left: auto;
+}
+
 .queue-actions {
   display: flex;
   gap: 8px;
@@ -453,6 +473,73 @@ body {
   max-width: 260px;
 }
 
+.ranking-layout {
+  width: 100%;
+}
+
+.ranking-metrics {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ranking-card {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+  background: linear-gradient(180deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+}
+
+.ranking-position {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-50);
+  color: var(--teal-600);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.ranking-main {
+  min-width: 0;
+}
+
+.ranking-name {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.ranking-note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.ranking-side {
+  text-align: right;
+}
+
+.ranking-units {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ranking-trend {
+  font-size: 12px;
+  color: var(--teal-600);
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -472,5 +559,22 @@ body {
 
   .metrics-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ranking-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-card {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .ranking-side {
+    text-align: left;
+  }
+
+  .nav-link-btn {
+    margin-left: 0;
   }
 }

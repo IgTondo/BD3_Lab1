@@ -12,8 +12,69 @@ const STATUS_CLASSES = {
   completed: "status-completed",
 };
 
+const MOCK_RANKING = [
+  { id: "demo-1", sold: 24, trend: "+12%", note: "Pico despues del almuerzo" },
+  { id: "demo-2", sold: 18, trend: "+8%", note: "Alto rendimiento en combos" },
+  { id: "demo-3", sold: 13, trend: "+4%", note: "Buen movimiento durante la tarde" },
+];
+
 function formatMoney(value) {
   return `$${value.toFixed(2)}`;
+}
+
+function ProductRankingView({ ranking, totalUnitsSold, topProductName, onBack }) {
+  return (
+    <div className="app">
+      <div className="header">
+        <div>
+          <div className="logo">
+            Brew<span>haus</span>
+          </div>
+          <div className="page-caption">Ranking de productos mas vendidos</div>
+        </div>
+
+        <div className="nav-actions">
+          <button className="btn" type="button" onClick={onBack}>
+            Volver al inicio
+          </button>
+        </div>
+      </div>
+
+      <div className="metrics-row ranking-metrics">
+        <div className="metric-card">
+          <div className="metric-label">Unidades vendidas</div>
+          <div className="metric-value">{totalUnitsSold}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">Producto lider</div>
+          <div className="metric-value metric-value-sm">{topProductName}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">Actualizacion</div>
+          <div className="metric-value metric-value-sm">Demo en vivo</div>
+        </div>
+      </div>
+
+      <div className="ranking-layout">
+        <div className="section-title">Top productos</div>
+        <div className="panel ranking-list">
+          {ranking.map((item, index) => (
+            <div key={item.id} className="ranking-card">
+              <div className="ranking-position">#{index + 1}</div>
+              <div className="ranking-main">
+                <div className="ranking-name">{item.name}</div>
+                <div className="ranking-note">{item.note}</div>
+              </div>
+              <div className="ranking-side">
+                <div className="ranking-units">{item.sold} uds</div>
+                <div className="ranking-trend">{item.trend}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -31,6 +92,9 @@ export default function App() {
   const [notif, setNotif] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [currentView, setCurrentView] = useState(() =>
+    window.location.hash === "#/ranking" ? "ranking" : "home",
+  );
   const notifTimeoutRef = useRef(null);
 
   const menuById = useMemo(() => {
@@ -40,6 +104,15 @@ export default function App() {
     }
     return map;
   }, [menu]);
+
+  useEffect(() => {
+    const syncViewWithHash = () => {
+      setCurrentView(window.location.hash === "#/ranking" ? "ranking" : "home");
+    };
+
+    window.addEventListener("hashchange", syncViewWithHash);
+    return () => window.removeEventListener("hashchange", syncViewWithHash);
+  }, []);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -120,6 +193,11 @@ export default function App() {
     notifTimeoutRef.current = setTimeout(() => setNotif(""), 2500);
   };
 
+  const navigateTo = (view) => {
+    window.location.hash = view === "ranking" ? "/ranking" : "/";
+    setCurrentView(view);
+  };
+
   const reloadMenu = async () => {
     const response = await fetch("/api/menu");
     if (!response.ok) {
@@ -189,6 +267,48 @@ export default function App() {
     () => cartItems.reduce((sum, item) => sum + item.subtotal, 0),
     [cartItems],
   );
+
+  const ranking = useMemo(() => {
+    const soldById = {};
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        soldById[item.id] = (soldById[item.id] || 0) + item.qty;
+      }
+    }
+
+    const realRanking = Object.entries(soldById)
+      .map(([id, sold]) => {
+        const menuItem = menuById[id];
+        return {
+          id,
+          name: menuItem?.name ?? id,
+          sold,
+          trend: sold >= 10 ? "+15%" : sold >= 5 ? "+7%" : "+3%",
+          note: sold >= 10 ? "Alta rotacion en esta jornada" : "Rendimiento estable hoy",
+        };
+      })
+      .sort((a, b) => b.sold - a.sold);
+
+    if (realRanking.length > 0) {
+      return realRanking.slice(0, 5);
+    }
+
+    return MOCK_RANKING.map((item, index) => {
+      const menuItem = menu[index];
+      return {
+        ...item,
+        name: menuItem?.name ?? `Producto ${index + 1}`,
+      };
+    });
+  }, [menu, menuById, orders]);
+
+  const totalUnitsSold = useMemo(
+    () => ranking.reduce((sum, item) => sum + item.sold, 0),
+    [ranking],
+  );
+
+  const topProductName = ranking[0]?.name ?? "Sin datos";
 
   const placeOrder = async () => {
     if (!username.trim()) {
@@ -334,6 +454,20 @@ export default function App() {
     return <div className="empty-state">Error cargando datos: {loadError}</div>;
   }
 
+  if (currentView === "ranking") {
+    return (
+      <>
+        <ProductRankingView
+          ranking={ranking}
+          totalUnitsSold={totalUnitsSold}
+          topProductName={topProductName}
+          onBack={() => navigateTo("home")}
+        />
+        {notif && <div className="notif">{notif}</div>}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="app">
@@ -351,6 +485,9 @@ export default function App() {
             <div className="stat-pill">
               En cola: <strong>{queueCount}</strong>
             </div>
+            <button className="btn btn-sm nav-link-btn" type="button" onClick={() => navigateTo("ranking")}>
+              Ver ranking
+            </button>
           </div>
         </div>
 
@@ -518,9 +655,12 @@ export default function App() {
                       {order.status === "reserved" && (
                         <>
                           <div className="timer-bar">
-                            <div className={`timer-fill${fillClass}`} style={{ width: `${pct}%` }} />
+                            <div
+                              className={`timer-fill${fillClass}`}
+                              style={{ width: `${pct}%` }}
+                            />
                           </div>
-                          <div className="timer-label">{timeLeft}s restantes</div>
+                          <div className="timer-label">Expira en {timeLeft}s</div>
                         </>
                       )}
                     </div>
