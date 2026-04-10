@@ -96,17 +96,7 @@ async function seed() {
   }
   log('🗂 ', `Set creado: ${availableKey}  →  ${PRODUCTS.filter(p => p.stock > 0).length} productos`);
 
-  // ── 4. CATEGORÍAS — Sets por categoría ────────────────────
-  section('Creando Sets por categoría');
-  const categories = [...new Set(PRODUCTS.map(p => p.category))];
-  for (const cat of categories) {
-    const catKey = `brewhaus:catalog:category:${cat}`;
-    const ids = PRODUCTS.filter(p => p.category === cat).map(p => p.id);
-    await client.sadd(catKey, ...ids);
-    log('🏷 ', `Set creado: ${catKey}  →  [${ids.join(', ')}]`);
-  }
-
-  // ── 5. ÓRDENES — Hash por orden ────────────────────────────
+  // ── 4. ÓRDENES — Hash por orden ────────────────────────────
   section('Cargando órdenes de muestra (Hashes)');
   for (const order of SAMPLE_ORDERS) {
     await client.hset(order.id, {
@@ -120,7 +110,7 @@ async function seed() {
     log('🧾', `Hash creado: ${order.id}  →  ${order.user} — ${order.status}`);
   }
 
-  // ── 6. QUEUE — List (cola FIFO de órdenes reservadas) ──────
+  // ── 5. QUEUE — List (cola FIFO de órdenes reservadas) ──────
   section('Poblando queue de órdenes (List)');
   const queueKey = 'brewhaus:queue:pending';
   const pendingOrders = SAMPLE_ORDERS.filter(o => o.status === 'reserved' || o.status === 'processing');
@@ -129,7 +119,7 @@ async function seed() {
     log('📋', `Encolado en ${queueKey}  →  ${order.id}`);
   }
 
-  // ── 7. QUEUE completed ────────────────────────────────────
+  // ── 6. QUEUE completed ────────────────────────────────────
   section('Poblando queue de completadas (List)');
   const completedQueueKey = 'brewhaus:queue:completed';
   const completedOrders = SAMPLE_ORDERS.filter(o => o.status === 'completed');
@@ -138,7 +128,7 @@ async function seed() {
     log('✅', `Encolado en ${completedQueueKey}  →  ${order.id}`);
   }
 
-  // ── 8. CONTADORES — Strings ────────────────────────────────
+// ── 7. CONTADORES — Strings ────────────────────────────────
   section('Inicializando contadores (Strings)');
   await client.set('brewhaus:stats:total_orders',     SAMPLE_ORDERS.length);
   await client.set('brewhaus:stats:completed_orders', SAMPLE_ORDERS.filter(o => o.status === 'completed').length);
@@ -147,27 +137,15 @@ async function seed() {
   await client.set('brewhaus:stats:order_id_seq',     1003);
   log('🔢', 'Contadores inicializados: total_orders, completed_orders, cache_hits, cache_misses, order_id_seq');
 
-  // ── 8. USUARIOS — Hashes ───────────────────────────────────
-  // section('Cargando usuarios de muestra (Hashes)');
-  // for (const user of SAMPLE_USERS) {
-  //   const key = `brewhaus:user:${user.id}`;
-  //   await client.hset(key, {
-  //     id:    user.id,
-  //     name:  user.name,
-  //     email: user.email,
-  //   });
-  //   log('👤', `Hash creado: ${key}  →  ${user.name}`);
-  // }
-
-  // ── 9. SORTED SET — Leaderboard de clientes ────────────────
+  // ── 8. SORTED SET — Leaderboard de clientes ────────────────
   section('Creando leaderboard de clientes frecuentes (Sorted Set)');
   const leaderboardKey = 'brewhaus:leaderboard:customers';
-  await client.zadd(leaderboardKey, 5, 'Ana García');
-  await client.zadd(leaderboardKey, 3, 'Carlos López');
-  await client.zadd(leaderboardKey, 8, 'María Fernández');
+  await client.zadd(leaderboardKey, 1, 'Ana García');
+  await client.zadd(leaderboardKey, 1, 'Carlos López');
+  await client.zadd(leaderboardKey, 1, 'María Fernández');
   log('🏆', `Sorted Set creado: ${leaderboardKey}  →  3 clientes`);
 
-  // ── 10. SORTED SET — Productos más pedidos ─────────────────
+  // ── 9. SORTED SET — Productos más pedidos ─────────────────
   section('Creando ranking de productos más pedidos (Sorted Set)');
   const popularKey = 'brewhaus:leaderboard:products';
   await client.zadd(popularKey, 3, 'Latte');
