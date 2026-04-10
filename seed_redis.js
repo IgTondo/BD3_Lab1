@@ -170,14 +170,14 @@ async function seed() {
   // ── 10. SORTED SET — Productos más pedidos ─────────────────
   section('Creando ranking de productos más pedidos (Sorted Set)');
   const popularKey = 'brewhaus:leaderboard:products';
-  await client.zadd(popularKey, 42, 'Latte');
-  await client.zadd(popularKey, 38, 'Cappuccino');
-  await client.zadd(popularKey, 31, 'Croissant');
-  await client.zadd(popularKey, 27, 'Espresso');
-  await client.zadd(popularKey, 19, 'Matcha Latte');
-  await client.zadd(popularKey, 15, 'Muffin');
-  await client.zadd(popularKey, 12, 'Sandwich');
-  await client.zadd(popularKey,  9, 'Agua con gas');
+  await client.zadd(popularKey, 3, 'Latte');
+  await client.zadd(popularKey, 2, 'Cappuccino');
+  await client.zadd(popularKey, 4, 'Croissant');
+  await client.zadd(popularKey, 1, 'Espresso');
+  await client.zadd(popularKey, 0, 'Matcha Latte');
+  await client.zadd(popularKey, 2, 'Muffin');
+  await client.zadd(popularKey, 3, 'Sandwich');
+  await client.zadd(popularKey,  1, 'Agua con gas');
   log('📊', `Sorted Set creado: ${popularKey}  →  8 productos`);
 
   // ── RESUMEN ────────────────────────────────────────────────
